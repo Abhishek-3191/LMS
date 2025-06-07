@@ -3,7 +3,7 @@ const bcrypt=require('bcryptjs');
 const jwt=require('jsonwebtoken');
 const User=req('../../models/User.js');
 
-const registeredUser=async(req,res)=>{
+const registerUser=async(req,res)=>{
     const {userName,userEmail,password,role}=req.body;
     try{
     const existingUser=await User.findOne({$or : [{userName},{userEmail}]});
@@ -28,18 +28,18 @@ const registeredUser=async(req,res)=>{
 };
 
 const loginUser=async(req,res)=>{
-    const {password,email}=req.body;
+    const {userEmail,password}=req.body;
     try {
-        const checkUser=await User.findOne({$or : [{userName},{userEmail}]});
+        const checkUser=await User.findOne({userEmail});
         if(!checkUser){
-            return res.json({success:false,message:"User doesn't exist"});
+            return res.status(401).json({success:false,message:"User doesn't exist"});
         }
         const checkPasswordMatch=await bcrypt.compare(password,checkUser.password);
         if(!checkPasswordMatch){
-            return res.json({success:false,message:"Password doesnt match"});
+            return res.status(401).json({success:false,message:"Password doesnt match"});
         }
-        const token=jwt.sign({
-            id:checkUser._id,
+        const accessToken=jwt.sign({
+            _id:checkUser._id,
             email:checkUser.email,
             role:checkUser.role,
         },process.env.CLIENT_SECRET_KEY,{expiresIn:'60m'});
@@ -48,13 +48,15 @@ const loginUser=async(req,res)=>{
         res.status(200).json({
             success:true,
             message:'Logged in successfully',
-            token,
+            data:{
+                accessToken,
             user:{
-                    id:checkUser._id,
+                    _id:checkUser._id,
                     email:checkUser.email,
                     role:checkUser.role,
                     userName:checkUser.userName,
                     }
+                }
         }); 
         
     } catch (error) {
@@ -66,10 +68,10 @@ const loginUser=async(req,res)=>{
     }
 };
 
-const logoutUser=(req,res)=>{
-    res.clearCookie('token').json({
-        success:true,
-        message:"Logout successfully"
-    })
-};
-module.exports={registeredUser,loginUser,logoutUser};
+// const logoutUser=(req,res)=>{
+//     res.clearCookie('token').json({
+//         success:true,
+//         message:"Logout successfully"
+//     })
+// };
+module.exports={registerUser,loginUser};
